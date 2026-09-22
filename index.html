@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Zähler">
 <meta name="theme-color" content="#000000">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -16,6 +16,8 @@
     --bg: #000; --panel: #1c1c1e; --panel2: #2c2c2e; --text: #fff;
     --muted: #8e8e93; --line: #38383a; --accent: #0a84ff; --limit: rgba(255,69,58,.7);
     --c: hsl(140 60% 42%);
+    --sat: max(env(safe-area-inset-top), 24px);
+    --sab: max(env(safe-area-inset-bottom), 20px);
     color-scheme: dark;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -25,11 +27,26 @@
   button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
 
   /* Hauptansicht */
-  #main { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
-  #statsBtn { position: absolute; top: calc(env(safe-area-inset-top) + 12px); right: 16px;
-    color: var(--accent); font-size: 17px; padding: 8px 4px; }
-  #counter { width: min(72vw, 72vh, 340px); aspect-ratio: 1; border-radius: 50%;
+  #main { position: fixed; inset: 0; display: flex; flex-direction: column;
+    padding: var(--sat) 8px var(--sab); }
+  #topbarMain { display: flex; align-items: center; height: 52px; flex: none; }
+  #statsBtn { color: var(--accent); font-size: 17px; padding: 14px 16px; }
+  #center { flex: none; display: flex; flex-direction: column; align-items: center; padding: 4vh 0 3vh; }
+  #list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; width: 100%; max-width: 360px; margin: 0 auto;
+    padding: 0 8px calc(var(--sab) + 96px); }
+  .item { text-align: center; color: var(--muted); font-size: 15px; padding: 7px 0; font-variant-numeric: tabular-nums; }
+  #empty { text-align: center; color: var(--muted); font-size: 15px; padding-top: 14px; }
+
+  /* Streak */
+  #topbarMain { justify-content: space-between; }
+  #streak { display: flex; align-items: center; gap: 6px; padding: 8px 12px; }
+  #streak svg { width: 26px; height: 30px; }
+  #streak .val { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: #ff9f0a; }
+  #streak .lbl { font-size: 11px; color: var(--muted); line-height: 1.1; }
+  #streak.off .val { color: #636366; }
+  #streak.off .flame { fill: #48484a; }
+  #streak.off .core { fill: #636366; }
+  #counter { width: min(64vw, 44vh, 300px); aspect-ratio: 1; border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 80%, white 20%), var(--c) 70%);
     box-shadow: 0 0 60px color-mix(in srgb, var(--c) 45%, transparent), inset 0 -8px 24px rgba(0,0,0,.25);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -37,10 +54,10 @@
   #counter:active { transform: scale(.95); }
   #num { font-size: min(28vw, 130px); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
   #numLabel { font-size: 17px; opacity: .85; margin-top: 6px; }
-  #last { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 90px); color: var(--muted); font-size: 15px; }
 
-  #toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px); transform: translate(-50%, calc(100% + 80px)); opacity: 0;
-    background: var(--panel2); border-radius: 14px; padding: 12px 16px; display: flex; gap: 16px; align-items: center;
+
+  #toast { position: fixed; left: 50%; bottom: calc(var(--sab) + 72px); transform: translate(-50%, calc(100% + 80px)); opacity: 0;
+    background: var(--panel2); border-radius: 16px; padding: 16px 20px; display: flex; gap: 16px; align-items: center;
     font-size: 15px; transition: transform .25s, opacity .25s; white-space: nowrap; }
   #toast.show { transform: translate(-50%, 0); opacity: 1; }
   #toast button { color: var(--accent); font-weight: 600; }
@@ -48,11 +65,11 @@
   /* Statistik */
   #stats { position: fixed; inset: 0; background: var(--bg); transform: translateY(100%); transition: transform .3s ease;
     overflow-y: auto; -webkit-overflow-scrolling: touch;
-    padding: calc(env(safe-area-inset-top) + 8px) 16px calc(env(safe-area-inset-bottom) + 32px); }
+    padding: var(--sat) 16px calc(var(--sab) + 48px); }
   #stats.open { transform: translateY(0); }
-  .topbar { display: flex; justify-content: space-between; align-items: center; height: 44px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; height: 52px; }
   .topbar h1 { font-size: 17px; margin: 0; font-weight: 600; }
-  .topbar button { color: var(--accent); font-size: 17px; min-width: 60px; text-align: left; }
+  .topbar button { color: var(--accent); font-size: 17px; min-width: 64px; text-align: left; padding: 14px 0; }
   .topbar .spacer { min-width: 60px; }
 
   .seg { display: flex; background: var(--panel); border-radius: 9px; padding: 2px; margin: 8px 0 18px; }
@@ -83,12 +100,23 @@
 <body>
 
 <div id="main">
-  <button id="statsBtn">Statistik</button>
-  <button id="counter" aria-label="Zigarette zählen">
-    <div id="num">0</div>
-    <div id="numLabel">heute</div>
-  </button>
-  <div id="last"></div>
+  <div id="topbarMain">
+    <div id="streak" class="off" aria-label="Streak">
+      <svg viewBox="0 0 24 28" aria-hidden="true">
+        <path class="flame" fill="#ff6a00" d="M12 1c1 5 6 7 6 14a6 6 0 0 1-12 0c0-3 1.5-5 3-6.5-.2 2 .5 3.5 1.5 4C10.5 8 9.5 4 12 1z"/>
+        <path class="core" fill="#ffd60a" d="M12 27a3.6 3.6 0 0 1-3.6-3.6c0-2 1.6-3 2.4-4.8.6 1.2 1.2 1.6 1.2 2.6 1-.6 1.4-1.6 1.4-2.6 1.4 1.4 2.2 2.8 2.2 4.8A3.6 3.6 0 0 1 12 27z"/>
+      </svg>
+      <div><div class="val" id="streakVal">0</div><div class="lbl" id="streakLbl">Tage</div></div>
+    </div>
+    <button id="statsBtn">Statistik</button>
+  </div>
+  <div id="center">
+    <button id="counter" aria-label="Zigarette zählen">
+      <div id="num">0</div>
+      <div id="numLabel">heute</div>
+    </button>
+  </div>
+  <div id="list"></div>
 </div>
 
 <div id="toast"><span>Zigarette gezählt</span><button id="undoBtn">Rückgängig</button></div>
@@ -126,11 +154,20 @@
   <div class="card">
     <div class="row"><span>Daten sichern (CSV)</span><button id="exportBtn">Exportieren</button></div>
     <div class="row"><span>Sicherung einspielen</span><button id="importBtn">Importieren</button></div>
+    <div class="row"><span>Alle Daten löschen</span><button id="resetBtn" style="color:#ff453a">Löschen</button></div>
   </div>
   <div class="note">Die Daten liegen nur auf diesem iPhone. Ein Tag zählt von 4:00 bis 3:59 Uhr. Gelegentlich exportieren, damit nichts verloren geht.</div>
   <input type="file" id="fileIn" accept=".csv,text/csv,text/plain" hidden>
 </section>
 
+<script>
+window.addEventListener('error', e => {
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99;background:#7f1d1d;color:#fff;font:12px -apple-system;padding:8px;';
+  d.textContent = 'Fehler: ' + (e.message || '') + ' (' + (e.lineno || '?') + ')';
+  document.body.appendChild(d);
+});
+</script>
 <script>
 (() => {
   const LIMIT = 5;
@@ -179,16 +216,42 @@
     $('num').textContent = c;
     $('numLabel').textContent = c === 1 ? 'Zigarette heute' : 'Zigaretten heute';
     document.documentElement.style.setProperty('--c', colorFor(c));
-    const last = entries.length ? Math.max(...entries) : null;
-    if (last) {
-      const min = Math.floor((Date.now() - last) / 60000);
-      let txt;
-      if (min < 1) txt = 'gerade eben';
-      else if (min < 60) txt = `vor ${min} Min.`;
-      else if (min < 60 * 24) txt = `vor ${Math.floor(min / 60)} Std. ${min % 60} Min.`;
-      else txt = `vor ${Math.floor(min / 1440)} Tag(en)`;
-      $('last').textContent = 'Letzte: ' + txt;
-    } else $('last').textContent = '';
+    renderList();
+    renderStreak();
+  }
+
+  // Liste der heutigen Zigaretten: neueste oben, bis 60 Minuten relativ, danach Uhrzeit
+  function renderList() {
+    const tKey = keyOfDate(today()), now = Date.now();
+    const todays = entries.filter(ts => keyOf(ts) === tKey).sort((a, b) => a - b);
+    const list = $('list');
+    if (!todays.length) { list.innerHTML = '<div id="empty">Heute noch keine Zigarette.</div>'; return; }
+    list.innerHTML = todays.map(ts => {
+      const d = new Date(ts), min = Math.floor((now - ts) / 60000);
+      const txt = min < 1 ? 'gerade eben' : min === 1 ? 'vor 1 Minute' : min < 60 ? `vor ${min} Minuten`
+        : `${pad(d.getHours())}:${pad(d.getMinutes())} Uhr`;
+      return `<div class="item">${txt}</div>`;
+    }).reverse().join('');
+  }
+
+  // Streak: aufeinanderfolgende volle Tage (bis gestern) mit hoechstens LIMIT Zigaretten,
+  // gezaehlt ab dem ersten erfassten Tag. Heute zaehlt erst nach Tagesende; die Flamme brennt,
+  // solange heute noch unter der Grenze liegt.
+  function renderStreak() {
+    const cm = counts(), t = today(), fKey = firstKey();
+    const todayC = cm[keyOfDate(t)] || 0;
+    let n = 0;
+    if (fKey) {
+      for (let d = addDays(t, -1); keyOfDate(d) >= fKey; d = addDays(d, -1)) {
+        if ((cm[keyOfDate(d)] || 0) > LIMIT) break;
+        n++;
+      }
+    }
+    const alive = todayC <= LIMIT;
+    if (!alive) n = 0;
+    $('streakVal').textContent = n;
+    $('streakLbl').textContent = !alive ? 'heute vorbei' : n === 1 ? 'Tag' : 'Tage';
+    $('streak').classList.toggle('off', !alive || (n === 0 && !fKey));
   }
 
   let lastAdded = null, toastTimer = null;
@@ -405,9 +468,36 @@
     $('rangeLbl').textContent = `${added} Einträge importiert`;
   });
 
+  // Loeschen in zwei Schritten (zweiter Tipp innerhalb von 5 Sekunden)
+  let resetArmed = null;
+  $('resetBtn').addEventListener('click', () => {
+    if (resetArmed) {
+      clearTimeout(resetArmed); resetArmed = null;
+      entries = []; save(); lastAdded = null;
+      $('resetBtn').textContent = 'Gelöscht';
+      setTimeout(() => { $('resetBtn').textContent = 'Löschen'; }, 2000);
+      renderMain(); renderStats();
+    } else {
+      $('resetBtn').textContent = 'Wirklich löschen?';
+      resetArmed = setTimeout(() => { resetArmed = null; $('resetBtn').textContent = 'Löschen'; }, 5000);
+    }
+  });
+
+  // ---------- Fallback: Touch-Ereignisse direkt auswerten (iOS-Vollbildmodus) ----------
+  ['statsBtn', 'undoBtn', 'closeStats', 'prev', 'next', 'exportBtn', 'importBtn', 'resetBtn'].forEach(id => {
+    const el = $(id); let moved = false;
+    el.addEventListener('touchstart', () => { moved = false; }, { passive: true });
+    el.addEventListener('touchmove', () => { moved = true; }, { passive: true });
+    el.addEventListener('touchend', e => {
+      if (moved || el.disabled) return;
+      e.preventDefault();               // verhindert den nachfolgenden Klick (kein Doppelauslösen)
+      el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+  });
+
   // ---------- Aktualisierung ----------
   renderMain();
-  setInterval(renderMain, 30000);
+  setInterval(renderMain, 15000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) renderMain(); });
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
