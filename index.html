@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zähler">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<title>Zigaretten-Zähler</title>
+<style>
+  :root {
+    --bg: #000; --panel: #1c1c1e; --panel2: #2c2c2e; --text: #fff;
+    --muted: #8e8e93; --line: #38383a; --accent: #0a84ff; --limit: rgba(255,69,58,.7);
+    --c: hsl(140 60% 42%);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    -webkit-user-select: none; user-select: none; overscroll-behavior: none; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+
+  /* Hauptansicht */
+  #main { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
+  #statsBtn { position: absolute; top: calc(env(safe-area-inset-top) + 12px); right: 16px;
+    color: var(--accent); font-size: 17px; padding: 8px 4px; }
+  #counter { width: min(72vw, 72vh, 340px); aspect-ratio: 1; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 80%, white 20%), var(--c) 70%);
+    box-shadow: 0 0 60px color-mix(in srgb, var(--c) 45%, transparent), inset 0 -8px 24px rgba(0,0,0,.25);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: background .6s, box-shadow .6s, transform .12s; }
+  #counter:active { transform: scale(.95); }
+  #num { font-size: min(28vw, 130px); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  #numLabel { font-size: 17px; opacity: .85; margin-top: 6px; }
+  #last { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 90px); color: var(--muted); font-size: 15px; }
+
+  #toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px); transform: translate(-50%, calc(100% + 80px)); opacity: 0;
+    background: var(--panel2); border-radius: 14px; padding: 12px 16px; display: flex; gap: 16px; align-items: center;
+    font-size: 15px; transition: transform .25s, opacity .25s; white-space: nowrap; }
+  #toast.show { transform: translate(-50%, 0); opacity: 1; }
+  #toast button { color: var(--accent); font-weight: 600; }
+
+  /* Statistik */
+  #stats { position: fixed; inset: 0; background: var(--bg); transform: translateY(100%); transition: transform .3s ease;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: calc(env(safe-area-inset-top) + 8px) 16px calc(env(safe-area-inset-bottom) + 32px); }
+  #stats.open { transform: translateY(0); }
+  .topbar { display: flex; justify-content: space-between; align-items: center; height: 44px; }
+  .topbar h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  .topbar button { color: var(--accent); font-size: 17px; min-width: 60px; text-align: left; }
+  .topbar .spacer { min-width: 60px; }
+
+  .seg { display: flex; background: var(--panel); border-radius: 9px; padding: 2px; margin: 8px 0 18px; }
+  .seg button { flex: 1; padding: 6px 0; border-radius: 7px; font-size: 13px; font-weight: 600; color: var(--text); }
+  .seg button.on { background: #636366; }
+
+  .headline { display: flex; justify-content: space-between; align-items: flex-end; min-height: 76px; }
+  .kicker { font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+  .big { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .big small { font-size: 17px; color: var(--muted); font-weight: 600; margin-left: 4px; }
+  .range { font-size: 15px; color: var(--muted); }
+  .nav { display: flex; gap: 4px; }
+  .nav button { width: 36px; height: 36px; border-radius: 50%; background: var(--panel); color: var(--accent); font-size: 18px; }
+  .nav button:disabled { color: #48484a; }
+
+  #chart { width: 100%; height: 240px; display: block; margin-top: 8px; touch-action: pan-y; }
+  #chart text { fill: var(--muted); font-size: 11px; }
+
+  .card { background: var(--panel); border-radius: 12px; margin-top: 22px; overflow: hidden; }
+  .row { display: flex; justify-content: space-between; padding: 13px 16px; font-size: 16px; border-bottom: .5px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .section { font-size: 13px; color: var(--muted); margin: 26px 0 -14px 16px; text-transform: uppercase; }
+  .row button { color: var(--accent); font-size: 16px; padding: 0; }
+  .note { font-size: 13px; color: var(--muted); padding: 8px 16px 0; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<div id="main">
+  <button id="statsBtn">Statistik</button>
+  <button id="counter" aria-label="Zigarette zählen">
+    <div id="num">0</div>
+    <div id="numLabel">heute</div>
+  </button>
+  <div id="last"></div>
+</div>
+
+<div id="toast"><span>Zigarette gezählt</span><button id="undoBtn">Rückgängig</button></div>
+
+<section id="stats" aria-hidden="true">
+  <div class="topbar">
+    <span class="spacer"></span>
+    <h1>Statistik</h1>
+    <button id="closeStats" style="text-align:right">Fertig</button>
+  </div>
+
+  <div class="seg" id="seg">
+    <button data-m="W" class="on">W</button>
+    <button data-m="M">M</button>
+    <button data-m="J">J</button>
+  </div>
+
+  <div class="headline">
+    <div>
+      <div class="kicker" id="kicker">DURCHSCHNITT</div>
+      <div class="big" id="bigVal">0</div>
+      <div class="range" id="rangeLbl"></div>
+    </div>
+    <div class="nav">
+      <button id="prev" aria-label="Zurück">‹</button>
+      <button id="next" aria-label="Weiter">›</button>
+    </div>
+  </div>
+
+  <svg id="chart"></svg>
+
+  <div class="card" id="summary"></div>
+
+  <div class="section">Daten</div>
+  <div class="card">
+    <div class="row"><span>Daten sichern (CSV)</span><button id="exportBtn">Exportieren</button></div>
+    <div class="row"><span>Sicherung einspielen</span><button id="importBtn">Importieren</button></div>
+  </div>
+  <div class="note">Die Daten liegen nur auf diesem iPhone. Ein Tag zählt von 4:00 bis 3:59 Uhr. Gelegentlich exportieren, damit nichts verloren geht.</div>
+  <input type="file" id="fileIn" accept=".csv,text/csv,text/plain" hidden>
+</section>
+
+<script>
+(() => {
+  const LIMIT = 5;
+  const DAY_SHIFT = 4 * 3600e3;           // Tageswechsel um 4 Uhr
+  const KEY = 'zz_entries_v1';
+  const $ = id => document.getElementById(id);
+
+  // ---------- Speicher ----------
+  let entries = [];
+  try { entries = JSON.parse(localStorage.getItem(KEY) || '[]').filter(Number.isFinite); } catch (e) { entries = []; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(entries)); } catch (e) {} };
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
+  // ---------- Datum ----------
+  const pad = n => String(n).padStart(2, '0');
+  const keyOfDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const logicalDate = ts => { const d = new Date(ts - DAY_SHIFT); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12); };
+  const keyOf = ts => keyOfDate(logicalDate(ts));
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12);
+  const today = () => logicalDate(Date.now());
+  const MONTHS = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'];
+  const MONTHS_LONG = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  const fmt = (v, d = 1) => v.toLocaleString('de-DE', { maximumFractionDigits: d, minimumFractionDigits: 0 });
+
+  function counts() {
+    const m = {};
+    for (const ts of entries) { const k = keyOf(ts); m[k] = (m[k] || 0) + 1; }
+    return m;
+  }
+
+  // Farbe: Grün (0) -> Gelb/Orange -> Dunkelrot (ab 5)
+  function colorFor(v) {
+    const t = Math.max(0, Math.min(v / LIMIT, 1));
+    let h, l;
+    if (t < .6) { h = 140 - (140 - 32) * (t / .6); l = 42; }
+    else { const u = (t - .6) / .4; h = 32 - 32 * u; l = 42 - 14 * u; }
+    const s = 65 + 10 * t;
+    return `hsl(${h.toFixed(0)} ${s.toFixed(0)}% ${l.toFixed(0)}%)`;
+  }
+
+  // ---------- Hauptansicht ----------
+  const counter = $('counter');
+  function renderMain() {
+    const c = counts()[keyOfDate(today())] || 0;
+    $('num').textContent = c;
+    $('numLabel').textContent = c === 1 ? 'Zigarette heute' : 'Zigaretten heute';
+    document.documentElement.style.setProperty('--c', colorFor(c));
+    const last = entries.length ? Math.max(...entries) : null;
+    if (last) {
+      const min = Math.floor((Date.now() - last) / 60000);
+      let txt;
+      if (min < 1) txt = 'gerade eben';
+      else if (min < 60) txt = `vor ${min} Min.`;
+      else if (min < 60 * 24) txt = `vor ${Math.floor(min / 60)} Std. ${min % 60} Min.`;
+      else txt = `vor ${Math.floor(min / 1440)} Tag(en)`;
+      $('last').textContent = 'Letzte: ' + txt;
+    } else $('last').textContent = '';
+  }
+
+  let lastAdded = null, toastTimer = null;
+  counter.addEventListener('click', () => {
+    const ts = Date.now();
+    entries.push(ts); save();
+    lastAdded = ts;
+    renderMain();
+    $('toast').classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => $('toast').classList.remove('show'), 6000);
+  });
+  $('undoBtn').addEventListener('click', () => {
+    if (lastAdded !== null) {
+      const i = entries.lastIndexOf(lastAdded);
+      if (i >= 0) entries.splice(i, 1);
+      save(); lastAdded = null; renderMain();
+    }
+    $('toast').classList.remove('show');
+  });
+
+  // ---------- Statistik ----------
+  let mode = 'W', offset = 0, selected = null;
+
+  function firstKey() { return entries.length ? keyOf(Math.min(...entries)) : null; }
+
+  // Liefert Balken und Zähltage eines Zeitraums
+  function period(m, off) {
+    const cm = counts(), t = today(), tKey = keyOfDate(t), fKey = firstKey();
+    const counted = d => { const k = keyOfDate(d); return fKey !== null && k >= fKey && k <= tKey; };
+    let days = [], bars = [], label = '';
+    if (m === 'W') {
+      const monday = addDays(t, -((t.getDay() + 6) % 7) - 7 * off);
+      for (let i = 0; i < 7; i++) days.push(addDays(monday, i));
+      bars = days.map(d => ({ lbl: WD[d.getDay()], date: d, v: counted(d) ? (cm[keyOfDate(d)] || 0) : null, future: keyOfDate(d) > tKey }));
+      const a = days[0], b = days[6];
+      label = a.getMonth() === b.getMonth()
+        ? `${a.getDate()}.–${b.getDate()}. ${MONTHS[b.getMonth()]} ${b.getFullYear()}`
+        : `${a.getDate()}. ${MONTHS[a.getMonth()]} – ${b.getDate()}. ${MONTHS[b.getMonth()]} ${b.getFullYear()}`;
+    } else if (m === 'M') {
+      const first = new Date(t.getFullYear(), t.getMonth() - off, 1, 12);
+      const n = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+      for (let i = 0; i < n; i++) days.push(addDays(first, i));
+      bars = days.map(d => ({ lbl: [1, 8, 15, 22, 29].includes(d.getDate()) ? String(d.getDate()) : '', date: d,
+        v: counted(d) ? (cm[keyOfDate(d)] || 0) : null }));
+      label = `${MONTHS_LONG[first.getMonth()]} ${first.getFullYear()}`;
+    } else {
+      const y = t.getFullYear() - off;
+      for (let mo = 0; mo < 12; mo++) {
+        const n = new Date(y, mo + 1, 0).getDate();
+        let sum = 0, cnt = 0;
+        for (let i = 1; i <= n; i++) {
+          const d = new Date(y, mo, i, 12); days.push(d);
+          if (counted(d)) { sum += cm[keyOfDate(d)] || 0; cnt++; }
+        }
+        bars.push({ lbl: MONTHS_LONG[mo][0], month: mo, year: y, v: cnt ? sum / cnt : null, total: sum });
+      }
+      label = String(y);
+    }
+    const cd = days.filter(counted);
+    const vals = cd.map(d => cm[keyOfDate(d)] || 0);
+    const total = vals.reduce((a, b) => a + b, 0);
+    return { bars, label, n: cd.length, total, avg: cd.length ? total / cd.length : null,
+      free: vals.filter(v => v === 0).length, over: vals.filter(v => v >= LIMIT).length,
+      max: vals.length ? Math.max(...vals) : 0 };
+  }
+
+  function drawChart(p) {
+    const svg = $('chart');
+    const W = svg.clientWidth || 340, H = 240;
+    const padR = 28, padB = 22, padT = 8;
+    const cw = W - padR, ch = H - padB - padT;
+    const maxV = Math.max(LIMIT + 1, ...p.bars.map(b => b.v || 0));
+    const step = maxV <= 10 ? 2 : maxV <= 25 ? 5 : 10;
+    const yMax = Math.ceil(maxV / step) * step;
+    const y = v => padT + ch - (v / yMax) * ch;
+    let s = '';
+    for (let v = 0; v <= yMax; v += step) {
+      s += `<line x1="0" x2="${cw}" y1="${y(v)}" y2="${y(v)}" stroke="#38383a" stroke-width="${v === 0 ? 1 : .5}"/>`;
+      s += `<text x="${cw + 6}" y="${y(v) + 4}">${v}</text>`;
+    }
+    // Grenze 5
+    s += `<line x1="0" x2="${cw}" y1="${y(LIMIT)}" y2="${y(LIMIT)}" stroke="var(--limit)" stroke-width="1" stroke-dasharray="2 3"/>`;
+    // Durchschnittslinie
+    if (p.avg !== null && selected === null)
+      s += `<line x1="0" x2="${cw}" y1="${y(p.avg)}" y2="${y(p.avg)}" stroke="#fff" stroke-opacity=".55" stroke-width="1" stroke-dasharray="5 4"/>`;
+    const slot = cw / p.bars.length;
+    const bw = Math.max(3, Math.min(slot * (mode === 'M' ? .62 : .55), 28));
+    p.bars.forEach((b, i) => {
+      const cx = slot * i + slot / 2;
+      const dim = selected !== null && selected !== i;
+      if (b.v !== null && b.v > 0) {
+        const h = Math.max(2, (b.v / yMax) * ch);
+        s += `<rect x="${cx - bw / 2}" y="${padT + ch - h}" width="${bw}" height="${h}" rx="${Math.min(4, bw / 2)}"
+               fill="${colorFor(b.v)}" opacity="${dim ? .35 : 1}"/>`;
+      }
+      if (selected === i) s += `<line x1="${cx}" x2="${cx}" y1="${padT}" y2="${padT + ch}" stroke="#636366" stroke-width="1"/>`;
+      if (b.lbl) s += `<text x="${cx}" y="${H - 6}" text-anchor="middle">${b.lbl}</text>`;
+      s += `<rect data-i="${i}" x="${slot * i}" y="0" width="${slot}" height="${H}" fill="transparent"/>`;
+    });
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = s;
+  }
+
+  function renderStats() {
+    const p = period(mode, offset);
+    const prev = period(mode, offset + 1);
+    if (selected !== null && p.bars[selected] && p.bars[selected].v !== null) {
+      const b = p.bars[selected];
+      if (mode === 'J') {
+        $('kicker').textContent = 'Ø PRO TAG';
+        $('bigVal').innerHTML = `${fmt(b.v)}<small>Zig.</small>`;
+        $('rangeLbl').textContent = `${MONTHS_LONG[b.month]} ${b.year} · gesamt ${b.total}`;
+      } else {
+        $('kicker').textContent = 'GERAUCHT';
+        $('bigVal').innerHTML = `${b.v}<small>Zig.</small>`;
+        const d = b.date;
+        $('rangeLbl').textContent = `${WD[d.getDay()]}, ${d.getDate()}. ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+      }
+    } else {
+      selected = null;
+      $('kicker').textContent = 'DURCHSCHNITT';
+      $('bigVal').innerHTML = p.avg === null ? '–' : `${fmt(p.avg)}<small>Zig./Tag</small>`;
+      $('rangeLbl').textContent = p.label;
+    }
+    $('next').disabled = offset === 0;
+    const fk = firstKey();
+    $('prev').disabled = !fk || prevEmptyBefore(fk);
+    drawChart(p);
+
+    let diff = '–';
+    if (p.avg !== null && prev.avg !== null) {
+      const d = p.avg - prev.avg;
+      diff = `${d > 0 ? '+' : d < 0 ? '−' : '±'}${fmt(Math.abs(d))} Zig./Tag`;
+    }
+    const prevName = mode === 'W' ? 'Vorwoche' : mode === 'M' ? 'Vormonat' : 'Vorjahr';
+    $('summary').innerHTML = `
+      <div class="row"><span>Gesamt</span><span>${p.total}</span></div>
+      <div class="row"><span>Höchster Tag</span><span>${p.max}</span></div>
+      <div class="row"><span>Rauchfreie Tage</span><span>${p.free} von ${p.n}</span></div>
+      <div class="row"><span>Tage mit ${LIMIT} oder mehr</span><span>${p.over}</span></div>
+      <div class="row"><span>Ø ${prevName}</span><span>${prev.avg === null ? '–' : fmt(prev.avg)}</span></div>
+      <div class="row"><span>Veränderung</span><span>${diff}</span></div>`;
+  }
+
+  // Zurückblättern nur, solange der vorige Zeitraum nach Aufzeichnungsbeginn liegt
+  function prevEmptyBefore(fk) {
+    const p = period(mode, offset + 1);
+    return p.n === 0;
+  }
+
+  $('chart').addEventListener('click', e => {
+    const i = e.target.dataset && e.target.dataset.i;
+    if (i === undefined) return;
+    const n = Number(i);
+    selected = selected === n ? null : n;
+    renderStats();
+  });
+  $('seg').addEventListener('click', e => {
+    const m = e.target.dataset.m; if (!m) return;
+    mode = m; offset = 0; selected = null;
+    document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+    renderStats();
+  });
+  $('prev').addEventListener('click', () => { offset++; selected = null; renderStats(); });
+  $('next').addEventListener('click', () => { if (offset > 0) { offset--; selected = null; renderStats(); } });
+
+  // Wischen im Diagramm
+  let sx = null;
+  $('chart').addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+  $('chart').addEventListener('touchend', e => {
+    if (sx === null) return;
+    const dx = e.changedTouches[0].clientX - sx; sx = null;
+    if (Math.abs(dx) < 50) return;
+    if (dx > 0 && !$('prev').disabled) $('prev').click();
+    if (dx < 0 && offset > 0) $('next').click();
+  });
+
+  $('statsBtn').addEventListener('click', () => {
+    selected = null; offset = 0;
+    $('stats').classList.add('open'); $('stats').setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(renderStats);
+  });
+  $('closeStats').addEventListener('click', () => {
+    $('stats').classList.remove('open'); $('stats').setAttribute('aria-hidden', 'true');
+  });
+  window.addEventListener('resize', () => { if ($('stats').classList.contains('open')) renderStats(); });
+
+  // ---------- Export / Import ----------
+  $('exportBtn').addEventListener('click', async () => {
+    const lines = ['zeitpunkt_iso,tag'];
+    [...entries].sort((a, b) => a - b).forEach(ts => lines.push(`${new Date(ts).toISOString()},${keyOf(ts)}`));
+    const name = `zigaretten-${keyOfDate(today())}.csv`;
+    const file = new File([lines.join('\n')], name, { type: 'text/csv' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+    } catch (e) { if (e.name === 'AbortError') return; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  });
+  $('importBtn').addEventListener('click', () => $('fileIn').click());
+  $('fileIn').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    const txt = await f.text();
+    const set = new Set(entries); let added = 0;
+    txt.split(/\r?\n/).forEach(line => {
+      const ts = Date.parse(line.split(',')[0]);
+      if (Number.isFinite(ts) && !set.has(ts)) { set.add(ts); added++; }
+    });
+    entries = [...set].sort((a, b) => a - b); save();
+    e.target.value = '';
+    renderMain(); renderStats();
+    $('rangeLbl').textContent = `${added} Einträge importiert`;
+  });
+
+  // ---------- Aktualisierung ----------
+  renderMain();
+  setInterval(renderMain, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) renderMain(); });
+
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
